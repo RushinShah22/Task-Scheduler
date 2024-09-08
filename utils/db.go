@@ -11,12 +11,15 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// DB is use to represent the DB connection
 type DB struct {
 	URI    string
 	Client *mongo.Client
 }
 
-func (db *DB) setupDB() error {
+// SetupDB is use to get MongoDB URI from env file
+
+func (db *DB) SetupDB() error {
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env File Found")
 		return err
@@ -33,14 +36,16 @@ func (db *DB) setupDB() error {
 
 }
 
-func (db *DB) connectDB() (*mongo.Client, error) {
+// ConnectDB is use to connect to the DB
+
+func (db *DB) ConnectDB() error {
 
 	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(db.URI))
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 	db.Client = client
 
-	return client, nil
+	return nil
 }
