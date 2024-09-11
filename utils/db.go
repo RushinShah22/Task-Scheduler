@@ -5,16 +5,19 @@ import (
 	"errors"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 // DB is use to represent the DB connection
 type DB struct {
-	URI    string
-	Client *mongo.Client
+	URI         string
+	Client      *mongo.Client
+	IsConnected bool
 }
 
 // SetupDB is use to get MongoDB URI from env file
@@ -38,14 +41,30 @@ func (db *DB) SetupDB() error {
 
 // ConnectDB is use to connect to the DB
 
-func (db *DB) ConnectDB() error {
+func (db *DB) ConnectDB(ctx context.Context) error {
 
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(db.URI))
+	retry := 5
+	var err_main error
+	for ; retry > 0; retry-- {
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 
-	if err != nil {
-		return err
+		defer cancel()
+		client, err := mongo.Connect(ctx, options.Client().ApplyURI(db.URI))
+
+		if err != nil {
+			return err
+		}
+
+		err = client.Ping(ctx, readpref.Primary())
+		if err != nil {
+			err_main = err
+			continue
+		}
+		db.IsConnected = true
+		db.Client = client
+		return nil
 	}
-	db.Client = client
 
-	return nil
+	return err_main
+
 }

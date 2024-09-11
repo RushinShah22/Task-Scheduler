@@ -4,9 +4,11 @@ import (
 	"time"
 )
 
-type Tasks struct {
-	Name        string    `json:"name"`
+type Task struct {
+	Command     string    `json:"name"`
 	ScheduledAt time.Time `json:"scheduledAt"`
+	PickedAt    time.Time `json:"pickedAt"`
 	StartedAt   time.Time `json:"startedAt"`
-	FinishedAt  time.Time `json:"finishedAt"`
+	CompletedAt time.Time `json:"completedAt"`
+	FailedAt    time.Time `json:"failedAt"`
 }

@@ -2,23 +2,20 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"time"
 
-	db "github.com/RushinShah22/task-scheduler/utils"
+	"github.com/RushinShah22/task-scheduler/pkg/scheduler"
 )
 
 func main() {
-	fmt.Println("Rushin Shah")
 
-	var client db.DB
-
-	if err := client.SetupDB(); err != nil {
-		log.Fatal(err)
+	task := scheduler.CommandRequest{
+		Command: "pwd", ScheduledAt: time.Now(),
 	}
-	if err := client.ConnectDB(); err != nil {
-		log.Fatal(err)
+	result, err := scheduler.InsertTaskIntoDB(&task)
+
+	if err != nil {
+		fmt.Println(err)
 	}
-
-	fmt.Println("Connected to DB.")
-
+	fmt.Println(result)
 }
