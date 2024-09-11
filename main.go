@@ -1,21 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/RushinShah22/task-scheduler/pkg/scheduler"
 )
 
 func main() {
+	var conn scheduler.SchedulerConn
 
-	task := scheduler.CommandRequest{
-		Command: "pwd", ScheduledAt: time.Now(),
-	}
-	result, err := scheduler.InsertTaskIntoDB(&task)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(result)
+	conn.SetupAndStartServer("", "8080")
 }
