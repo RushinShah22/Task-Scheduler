@@ -11,6 +11,7 @@ import (
 
 	task "github.com/RushinShah22/task-scheduler/model"
 	db "github.com/RushinShah22/task-scheduler/utils"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -52,6 +53,7 @@ func (s *SchedulerConn) SetupAndStartServer(addr, port string) error {
 	}
 
 	http.HandleFunc("/schedule", s.handleTaskInsert)
+	http.HandleFunc("/status", s.handleGetTaskStatus)
 	var main_err error
 
 	var wg sync.WaitGroup
@@ -151,5 +153,112 @@ func (s *SchedulerConn) handleTaskInsert(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonResponse)
+}
+
+func (s *SchedulerConn) handleGetTaskStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Only GET method is allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get the task ID from the query parameters
+	taskID := r.URL.Query().Get("task_id")
+
+	// Check if the task ID is empty
+	if taskID == "" {
+		http.Error(w, "Task ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Query the database to get the task status
+
+	collection := schedulerDB.Client.Database("task-scheduler").Collection("Task")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	id, err := primitive.ObjectIDFromHex(taskID)
+
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	cursor, err := collection.Find(ctx, bson.M{"_id": id})
+
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	var result task.Task
+	for cursor.Next(ctx) {
+		err := cursor.Decode(&result)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if result.Command == "" {
+		http.Error(w, "No task with id: "+taskID, http.StatusNotFound)
+		return
+	}
+
+	// Prepare the response JSON
+	response := struct {
+		TaskID      string `json:"task_id"`
+		Command     string `json:"command"`
+		ScheduledAt string `json:"scheduled_at,omitempty"`
+		PickedAt    string `json:"picked_at,omitempty"`
+		StartedAt   string `json:"started_at,omitempty"`
+		CompletedAt string `json:"completed_at,omitempty"`
+		FailedAt    string `json:"failed_at,omitempty"`
+	}{
+		TaskID:      taskID,
+		Command:     result.Command,
+		ScheduledAt: "",
+		PickedAt:    "",
+		StartedAt:   "",
+		CompletedAt: "",
+		FailedAt:    "",
+	}
+
+	// Set the scheduled_at time if non-null.
+	if result.ScheduledAt != time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC) {
+		response.ScheduledAt = result.ScheduledAt.String()
+	}
+
+	// Set the picked_at time if non-null.
+	if result.PickedAt != time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC) {
+		response.PickedAt = result.PickedAt.String()
+	}
+
+	// Set the started_at time if non-null.
+	if result.StartedAt != time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC) {
+		response.StartedAt = result.StartedAt.String()
+	}
+
+	// Set the completed_at time if non-null.
+	if result.CompletedAt != time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC) {
+		response.CompletedAt = result.CompletedAt.String()
+	}
+
+	// Set the failed_at time if non-null.
+	if result.FailedAt != time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC) {
+		response.FailedAt = result.FailedAt.String()
+	}
+
+	// Convert the response struct to JSON
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, "Failed to marshal JSON response", http.StatusInternalServerError)
+		return
+	}
+
+	// Set the Content-Type header to application/json
+	w.Header().Set("Content-Type", "application/json")
+
+	// Write the JSON response
 	w.Write(jsonResponse)
 }

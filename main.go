@@ -1,11 +1,16 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/RushinShah22/task-scheduler/pkg/scheduler"
 )
 
 func main() {
 	var conn scheduler.SchedulerConn
 
-	conn.SetupAndStartServer("", "8080")
+	err := conn.SetupAndStartServer("", "8080")
+	if err != nil {
+		fmt.Println(err)
+	}
 }
