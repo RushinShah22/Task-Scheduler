@@ -27,3 +27,5 @@ go.work.sum
 data
 
 bin
+
+*.pb.go
